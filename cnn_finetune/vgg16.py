@@ -7,7 +7,7 @@ from keras import backend as K
 
 from sklearn.metrics import log_loss
 
-from load_cifar10 import load_cifar10_data
+from load_data import load_dogs
 
 def vgg16_model(img_rows, img_cols, channel=1, num_classes=None):
     """VGG 16 Model for Keras
@@ -97,12 +97,12 @@ if __name__ == '__main__':
 
     img_rows, img_cols = 224, 224 # Resolution of inputs
     channel = 3
-    num_classes = 10 
-    batch_size = 16 
+    num_classes = 120 
+    batch_size = 16
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset
-    X_train, Y_train, X_valid, Y_valid = load_cifar10_data(img_rows, img_cols)
+    X_train, Y_train, X_valid, Y_valid = load_dogs(img_rows, img_cols)
 
     # Load our model
     model = vgg16_model(img_rows, img_cols, channel, num_classes)

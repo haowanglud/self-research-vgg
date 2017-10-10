@@ -2,14 +2,14 @@
 
 from keras.models import Sequential
 from keras.optimizers import SGD
-from keras.layers import Input, Dense, Convolution2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Dropout, Flatten, merge, Reshape, Activation
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Dropout, Flatten, concatenate, Reshape, Activation
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras import backend as K
 
 from sklearn.metrics import log_loss
 
-from load_cifar10 import load_cifar10_data
+from load_data import load_dogs
 
 def conv2d_bn(x, nb_filter, nb_row, nb_col,
               border_mode='same', subsample=(1, 1), bias=False):
@@ -21,10 +21,10 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
         channel_axis = 1
     else:
         channel_axis = -1
-    x = Convolution2D(nb_filter, nb_row, nb_col,
-                      subsample=subsample,
-                      border_mode=border_mode,
-                      bias=bias)(x)
+    x = Conv2D(nb_filter, (nb_row, nb_col),
+                      strides=subsample,
+                      padding=border_mode,
+                      use_bias=bias)(x)
     x = BatchNormalization(axis=channel_axis)(x)
     x = Activation('relu')(x)
     return x
@@ -44,10 +44,10 @@ def block_inception_a(input):
     branch_2 = conv2d_bn(branch_2, 96, 3, 3)
     branch_2 = conv2d_bn(branch_2, 96, 3, 3)
 
-    branch_3 = AveragePooling2D((3,3), strides=(1,1), border_mode='same')(input)
+    branch_3 = AveragePooling2D((3,3), strides=(1,1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 96, 1, 1)
 
-    x = merge([branch_0, branch_1, branch_2, branch_3], mode='concat', concat_axis=channel_axis)
+    x = concatenate(inputs=[branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -63,9 +63,9 @@ def block_reduction_a(input):
     branch_1 = conv2d_bn(branch_1, 224, 3, 3)
     branch_1 = conv2d_bn(branch_1, 256, 3, 3, subsample=(2,2), border_mode='valid')
 
-    branch_2 = MaxPooling2D((3,3), strides=(2,2), border_mode='valid')(input)
+    branch_2 = MaxPooling2D((3,3), strides=(2,2), padding='valid')(input)
 
-    x = merge([branch_0, branch_1, branch_2], mode='concat', concat_axis=channel_axis)
+    x = concatenate(inputs=[branch_0, branch_1, branch_2], axis=channel_axis)
     return x
 
 
@@ -87,10 +87,10 @@ def block_inception_b(input):
     branch_2 = conv2d_bn(branch_2, 224, 7, 1)
     branch_2 = conv2d_bn(branch_2, 256, 1, 7)
 
-    branch_3 = AveragePooling2D((3,3), strides=(1,1), border_mode='same')(input)
+    branch_3 = AveragePooling2D((3,3), strides=(1,1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 128, 1, 1)
 
-    x = merge([branch_0, branch_1, branch_2, branch_3], mode='concat', concat_axis=channel_axis)
+    x = concatenate(inputs=[branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -108,9 +108,9 @@ def block_reduction_b(input):
     branch_1 = conv2d_bn(branch_1, 320, 7, 1)
     branch_1 = conv2d_bn(branch_1, 320, 3, 3, subsample=(2,2), border_mode='valid')
 
-    branch_2 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(input)
+    branch_2 = MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(input)
 
-    x = merge([branch_0, branch_1, branch_2], mode='concat', concat_axis=channel_axis)
+    x = concatenate(inputs=[branch_0, branch_1, branch_2], axis=channel_axis)
     return x
 
 
@@ -125,7 +125,7 @@ def block_inception_c(input):
     branch_1 = conv2d_bn(input, 384, 1, 1)
     branch_10 = conv2d_bn(branch_1, 256, 1, 3)
     branch_11 = conv2d_bn(branch_1, 256, 3, 1)
-    branch_1 = merge([branch_10, branch_11], mode='concat', concat_axis=channel_axis)
+    branch_1 = concatenate(inputs=[branch_10, branch_11], axis=channel_axis)
 
 
     branch_2 = conv2d_bn(input, 384, 1, 1)
@@ -133,12 +133,12 @@ def block_inception_c(input):
     branch_2 = conv2d_bn(branch_2, 512, 1, 3)
     branch_20 = conv2d_bn(branch_2, 256, 1, 3)
     branch_21 = conv2d_bn(branch_2, 256, 3, 1)
-    branch_2 = merge([branch_20, branch_21], mode='concat', concat_axis=channel_axis)
+    branch_2 = concatenate(inputs=[branch_20, branch_21], axis=channel_axis)
 
-    branch_3 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(input)
+    branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 256, 1, 1)
 
-    x = merge([branch_0, branch_1, branch_2, branch_3], mode='concat', concat_axis=channel_axis)
+    x = concatenate(inputs=[branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -153,11 +153,11 @@ def inception_v4_base(input):
     net = conv2d_bn(net, 32, 3, 3, border_mode='valid')
     net = conv2d_bn(net, 64, 3, 3)
 
-    branch_0 = MaxPooling2D((3,3), strides=(2,2), border_mode='valid')(net)
+    branch_0 = MaxPooling2D((3,3), strides=(2,2), padding='valid')(net)
 
     branch_1 = conv2d_bn(net, 96, 3, 3, subsample=(2,2), border_mode='valid')
 
-    net = merge([branch_0, branch_1], mode='concat', concat_axis=channel_axis)
+    net = concatenate(inputs=[branch_0, branch_1], axis=channel_axis)
 
     branch_0 = conv2d_bn(net, 64, 1, 1)
     branch_0 = conv2d_bn(branch_0, 96, 3, 3, border_mode='valid')
@@ -167,16 +167,16 @@ def inception_v4_base(input):
     branch_1 = conv2d_bn(branch_1, 64, 7, 1)
     branch_1 = conv2d_bn(branch_1, 96, 3, 3, border_mode='valid')
 
-    net = merge([branch_0, branch_1], mode='concat', concat_axis=channel_axis)
+    net = concatenate(inputs=[branch_0, branch_1], axis=channel_axis)
 
     branch_0 = conv2d_bn(net, 192, 3, 3, subsample=(2,2), border_mode='valid')
-    branch_1 = MaxPooling2D((3,3), strides=(2,2), border_mode='valid')(net)
+    branch_1 = MaxPooling2D((3,3), strides=(2,2), padding='valid')(net)
 
-    net = merge([branch_0, branch_1], mode='concat', concat_axis=channel_axis)
+    net = concatenate(inputs=[branch_0, branch_1], axis=channel_axis)
 
     # 35 x 35 x 384
     # 4 x Inception-A blocks
-    for idx in xrange(4):
+    for idx in range(4):
       net = block_inception_a(net)
 
     # 35 x 35 x 384
@@ -185,7 +185,7 @@ def inception_v4_base(input):
 
     # 17 x 17 x 1024
     # 7 x Inception-B blocks
-    for idx in xrange(7):
+    for idx in range(7):
       net = block_inception_b(net)
 
     # 17 x 17 x 1024
@@ -194,7 +194,7 @@ def inception_v4_base(input):
 
     # 8 x 8 x 1536
     # 3 x Inception-C blocks
-    for idx in xrange(3):
+    for idx in range(3):
       net = block_inception_c(net)
 
     return net
@@ -230,14 +230,14 @@ def inception_v4_model(img_rows, img_cols, color_type=1, num_classeses=None, dro
     # Final pooling and prediction
 
     # 8 x 8 x 1536
-    net_old = AveragePooling2D((8,8), border_mode='valid')(net)
+    net_old = AveragePooling2D((8,8), padding='valid')(net)
 
     # 1 x 1 x 1536
     net_old = Dropout(dropout_keep_prob)(net_old)
     net_old = Flatten()(net_old)
 
     # 1536
-    predictions = Dense(output_dim=1001, activation='softmax')(net_old)
+    predictions = Dense(units=1001, activation='softmax')(net_old)
 
     model = Model(inputs, predictions, name='inception_v4')
 
@@ -253,10 +253,10 @@ def inception_v4_model(img_rows, img_cols, color_type=1, num_classeses=None, dro
     # Truncate and replace softmax layer for transfer learning
     # Cannot use model.layers.pop() since model is not of Sequential() type
     # The method below works since pre-trained weights are stored in layers but not in the model
-    net_ft = AveragePooling2D((8,8), border_mode='valid')(net)
+    net_ft = AveragePooling2D((8,8), padding='valid')(net)
     net_ft = Dropout(dropout_keep_prob)(net_ft)
     net_ft = Flatten()(net_ft)
-    predictions_ft = Dense(output_dim=num_classes, activation='softmax')(net_ft)
+    predictions_ft = Dense(units=num_classes, activation='softmax')(net_ft)
 
     model = Model(inputs, predictions_ft, name='inception_v4')
 
@@ -272,12 +272,12 @@ if __name__ == '__main__':
 
     img_rows, img_cols = 299, 299 # Resolution of inputs
     channel = 3
-    num_classes = 10 
+    num_classes = 120 
     batch_size = 16 
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset
-    X_train, Y_train, X_valid, Y_valid = load_cifar10_data(img_rows, img_cols)
+    X_train, Y_train, X_valid, Y_valid = load_dogs(img_rows, img_cols)
 
     # Load our model
     model = inception_v4_model(img_rows, img_cols, channel, num_classes, dropout_keep_prob=0.2)
@@ -285,7 +285,7 @@ if __name__ == '__main__':
     # Start Fine-tuning
     model.fit(X_train, Y_train,
               batch_size=batch_size,
-              nb_epoch=nb_epoch,
+              epochs=nb_epoch,
               shuffle=True,
               verbose=1,
               validation_data=(X_valid, Y_valid),
